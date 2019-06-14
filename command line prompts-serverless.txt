@@ -1,0 +1,27 @@
+sls create --template aws-python --path hello-world-python
+// creating a new template and path
+
+cd hello-world-python
+// getting into the created directory
+//contains handler.py and serverless.yml
+
+sls deploy -v
+// deploy the code on AWs
+
+invoke -f hello -l
+// showing the output and the log
+
+sls deploy function -f hello
+// update instead of deploying again
+
+sls logs -f hello -t
+// stream the logs
+
+sls deploy -v -r us-east-2
+// deploy the current config in specific area
+
+sls remove -v -r us-east 2
+// remove configuration
+
+
+

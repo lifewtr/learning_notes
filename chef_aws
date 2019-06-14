@@ -1,0 +1,39 @@
+note_chef:
+
+1. make an ec2 instance on AWS
+2. ssh in using the command: ssh -i key.pem ec2-user@my-ip-addr
+3. can make recipes by writing to test.rb
+--------------------------------------------------------------------
+sampple rb file:
+
+package 'httpd'
+
+service 'httpd' do
+  action [:enable, :start]
+end
+
+template '/var/www/html/index.html' do
+  source 'index.html.erb'
+end
+# this runs an apache server
+--------------------------------------------------------------------
+make a cookbook:
+
+1. mkdir cookbooks
+2. chef generate cookbook cookbooks/learn_chef_httpd
+# this makes a template tree of cookbook directory.
+3. chef generate template cookbooks/learn_chef_httpd index.html
+#make index.html under the directory learn_chef_httpd
+4. sudo chef-client --local-mode --runlist 'recipe[learn_chef_httpd]'
+# this allows you to run multiple recipes from multiple cookbooks.
+$ with nothing after learn_chef_httpd, means we want the default one, [learn_chef_httpd::default] -> default.rb
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+Chapter 2: manage a node with chef automate
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+- workstation: the computer which I manage cookbooks and administer network. 
+- Chef server: acts as a central repo for cookbooks and info about nodes. 
+- node: computer that is managed by a chef server. 
+
+https://learn.chef.io/modules/manage-a-node-chef-automate/rhel/opsworks#/

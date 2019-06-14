@@ -1,0 +1,14 @@
+running chef-automate on windows:
+
+1. install vagrant and virtualbox from the internet
+2. get vagrantfile from url http://learnchef.s3.amazonaws.com/Vagrantfile
+3. get to working directory C:\Users\CXU and run vagrant up to make the VM running through virtualbox. 
+4. run echo 192.168.33.199 chef-automate.test | sudo teee -a /etc/hosts to add the ip above to local hosts. 
+5. go to https://chef-automate.test/ and use login information fetched by running "vagrant ssh" and getting credentials from "sudo cat automate-credentials.toml"
+6. log on to chef-automte
+7. suspending: run "exit" and then "vagrant suspend" to terminate. 
+8. to come back, run "vagrant resume"
+9. to remove the VM: "vagrant destroy"
+10. remove entry from /etc/hosts: " sudo sed -i '' '/192.168.33.199 chef-automate.test/d' /etc/hosts"
+
+

@@ -1,0 +1,397 @@
+terraform
+# initialize terraform in order to use the service
+terraform init 
+terraform apply
+
+#privisioning software on your instances
+1. using file uploads
+2. using remote exec
+3. using automation tools like chef, puppet, ansible(can add chef statements)
+4. file/script can be used in conjunction with remote-exec to execute a script
+5. use "connection" in place for ssh
+--------------------------------------------------------------------
+context:
+
+resource "aws_key_pair" "mykey" {
+  key_name = "mykey"
+  public_key = "${file("${var.PATH_TO_PUBLIC_KEY}")}"
+}
+
+resource "some_instance" "some_name" {
+  ami = "some_ami"
+  instance_type = "t2.micro"
+  key_name = "${aws_key_pair.mykey.key_name}"
+# provisioner to upload a file using context "source" and "destination"
+  provisioner "file" { 
+    source = "script.sh"
+    destination = "/tmp/script.sh"
+  }
+# provisioner to execute scripts using inline=["commandA","commandB"]
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/script.sh",
+      "sudo /tmp/script.sh"
+    ]
+  }
+# configuring the connection to instance
+  connection {
+    host = "${self.public_ip}"
+    user = "${var.INSTANCE_USERNAME}"
+    private_key = "${file("${var.PATH_TO_PRIVATE_KEY}")}"
+  }
+}
+--------------------------------------------------------------------
+ouput in terraform:
+ouput "ip"{
+  value = "${aws_instance.example.public_ip}"
+}
+# using the attributes in a script:
+## start automation scripts after infrastructure provisioning
+## works only on mac and linux
+provisioner "local-exec"{
+	command = "echo ${aws_instance.example.private_ip}>>private_ips.txt"
+}
+--------------------------------------------------------------------
+remote state and backup:
+1. terraform keeps the remote state of the infrastructure.
+2. it stores the remote state in a file called terraform.tfstate
+3. backup of the previous state is stored in terraform.tfstate.backup
+4. when executing terraform apply, a new terraform.tfstate and backup is written
+--------------------------------------------------------------------
+create a VPC 
+# isolates the instances on a network level. 
+# for smaller to medium setups, one VPC(per region) will be suitable for your needs.
+# instance lauched in one VPC can never communicate with an instance in another VPC using their private ip addresses.
+# use VPC peering to link VPCs
+# every AZ has its own public and private subnet. 
+# public subnets are connected to an Internet Gateway and have public ip addresses
+# instances launched in the private subnets don't get a public ip address, not reachable from the internet. (Use NAT gateway to connect to outside from inside)
+# public subnets can reach the private subnets in the same VPC
+--------------------------------------------------------------------
+# Internet VPC
+## vpc.tf
+resource "aws_vpc" "main"{
+	cidr_block = "10.0.0.0/16"
+	instance_tenancy="default"
+	enable_dns_support = "true"
+	enable_dns_hostnames="true"
+	enable_classiclink = "false" //so it doesnt go on ec2classic
+	tags{
+	Name = "main"
+	}
+}
+# Subnets
+resource "aws_subnet" "main-public-1" {
+	vpc_id ="${aws_vpc.main.id}"
+	cidr_block = "10.0.1.0/24"
+	map_public_ip_on_launch = "true"
+	availability_zone = "eu-west-1a"
+
+	tags {
+	Name = "main-public-1"
+	}
+}
+resource "aws_subnet" "main-public-2" {
+	vpc_id ="${aws_vpc.main.id}"
+	cidr_block = "10.0.2.0/24"
+	map_public_ip_on_launch = "true"
+	availability_zone = "eu-west-1b"
+
+	tags {
+	Name = "main-public-2"
+	}
+}
+resource "aws_subnet" "main-public-3" {
+	vpc_id ="${aws_vpc.main.id}"
+	cidr_block = "10.0.3.0/24"
+	map_public_ip_on_launch = "true"
+	availability_zone = "eu-west-1c"
+
+	tags {
+	Name = "main-public-3"
+	}
+}
+
+resource"aws_subnet" "main-private-1" {
+	vpc_id = "${aws_vpc.main.id}"
+	cidr_block = "10.0.4.0/24"
+	map_public_ip_on_launch = "false"
+	availability_zone = "eu-west-1a"
+
+	tags {
+	Name = "main-private-1"
+	}
+}
+resource"aws_subnet" "main-private-2" {
+	vpc_id = "${aws_vpc.main.id}"
+	cidr_block = "10.0.5.0/24"
+	map_public_ip_on_launch = "false"
+	availability_zone = "eu-west-1b"
+
+	tags {
+	Name = "main-private-2"
+	}
+}
+resource"aws_subnet" "main-private-3" {
+	vpc_id = "${aws_vpc.main.id}"
+	cidr_block = "10.0.6.0/24"
+	map_public_ip_on_launch = "false"
+	availability_zone = "eu-west-1c"
+
+	tags {
+	Name = "main-private-3"
+	}
+}
+
+# Internet GW
+resource "aws_internet_gateway" "main-gw" {
+	vpc_id = "${aws_vpc.main.id}"
+
+	tags {
+	Name = "main"
+	}
+}
+
+# route tables
+resource "aws_route_table" "main-public" {
+	vpc_id = "${aws_vpc.main.id}"
+	route {
+	cidr_block = "0.0.0.0/0" //for all outbound traffic
+	gateway_id = "${aws_internet_gateway.main-gw.id}"
+	}
+
+	tags {
+	Name = "main-public-1"
+	}
+}
+
+# route associations public
+resource "aws_route_table_association" "main-public-1-a" {
+	subnet_id = "${aws_route_table.main-public-1.id}"
+	route_table.id = "${aws_route_table.main-public.id}"
+}
+resource "aws_route_table_association" "main-public-2-a" {
+	subnet_id = "${aws_route_table.main-public-2.id}"
+	route_table.id = "${aws_route_table.main-public.id}"
+}
+resource "aws_route_table_association" "main-public-3-a" {
+	subnet_id = "${aws_route_table.main-public-3.id}"
+	route_table.id = "${aws_route_table.main-public.id}"
+}
+--------------------------------------------------------------------
+Security Group configuration
+# security group.tf
+resource "aws_security_group" "allow-ssh" {
+	vpc_id = "${aws_vpc.main.id}"
+	name = "allow-ssh"
+	descrption = "security group that allows ssh and all egress traffic"
+	egress {
+		from_port = 0
+		to_port = 0
+		protocol = "-1"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+	ingress {
+		from_port = 22
+		to_port = 22
+		protocol = "-1"
+		cidr_blocks = ["4.3.2.1/32"] // my working ip address 
+	}
+	tags {
+		Name = "allow-ssh"
+	}
+}
+--------------------------------------------------------------------
+1. terraform plan // test launch, see what should happen after launch
+2. terraform apply // apply the configuration. 
+3. vim terraform.tfstate //check the information
+4. ssh 52.51.4.31 -l unbutu -i mykey
+5. sudo -s
+6. ifconfig // check the configurations of ip address and mask
+7. route -n  //check the routing table
+--------------------------------------------------------------------
+EBS volumes
+# some instance types have local storage on the instance istself called ephemeral storage.
+Attach an EBS volume to an instance:
+resource "aws_instance" "example" {
+	ami = "${lookup(var.AMIS, var.AWS_REGION)}"
+	instance_type = "t2.micro"
+
+	# the VPC subnet
+	subnet_id = "${aws_subnet.main-public-1.id}"
+
+	# the security group
+	vpc_security_group_ids = ["${aws_security_group.allow-ssh.id}"]
+
+	# the public SSH key
+	key_name = "${aws_key_pair.mykeypair.key_name}"
+}
+
+resource "aws_ebs_volume" "ebs-volume-1" {
+	availability_zone = "eu-west-1a"
+	size = 20
+	type = "gp2"
+	tags {
+		Name = "extra volume data"
+	}
+}
+
+resource "was_volume_attachment" "ebs-colume-1-attachment" {
+	device_name = "/dev/xvdh"  /the directory that the storage lives
+	volume_id = "${aws_ebs_volume.ebs-volume-1.id}"
+	instance_id = "${aws_instance.example.id}"
+}
+
+1. ssh into the machine
+2. mkfs.ext4 /dev/xvdh   // make a file system
+3. mkdir /data
+4. mount /dev/xvdh /data  //mount the volume
+# data will be available after reboot
+--------------------------------------------------------------------
+User Data: 
+can be used to do any customization at launch
+  - install extra software
+  - prepare the instance to join a cluster
+  - execute commands/scripts
+  - mount volumes
+Userdata is only executed at teh creation of the instance, not when the instance reboots. 
+
+Terraform allows you to add userdata to the aws_instance resource 
+  - just as a string (simple commands)
+  - using a template (for complex instructions)
+
+# at the end of instance.tf file:
+# userdata
+user_data = "#!/bin/bash\nwget http://swupdate.openvpn.org/as/openvpn-as-2.1.2-Ubuntu14.amd_64.deb\ndpkg -i openvpn-as-2.1.2-Ubuntu14.amd_64.deb"
+# this will instal an OpenVPN application server at boot time. 
+
+# Another way:
+# add to the end of instance.tf file:
+#userdata
+user_data = "${data.template_cloudinit_config.cloudinit-example.rendered}"
+
+##cloudinit.tf:
+provider "cloudinit" {}
+
+data "template_file" "init-script"{
+	template = "${file("scripts/init.cfg")}" // reads init.cfg
+	vars {
+		region = "${var.AWS_REGION}"
+	}
+}
+
+data "template_file" "shell-script" {
+	template = "${file("scripts/volumes.sh")}"
+	vars {
+	DEVICE = "${var.INSTANCE_DEVICE_NAME}"
+	}
+}
+
+data "template_cloudinit_config" "cloudinit-example" {
+	gzip = false
+	base64_encode = false
+	part {
+	filename = "init.cfg"
+	content_type = "text/cloud-config"
+	content = "${data.template_file.init-script.rendered}"
+	}
+	part {
+	content_type = "text/x-shellscript"
+	content = "${data.template_file.shell-script.rendered}"
+	}
+}
+
+##scripts/init.cfg
+#cloud-config
+
+repo_updata: true
+repo_upgrade: all
+packages:
+  - docker
+
+output:
+  all:'| tee -a / var/log/cloud-init-output.log'
+--------------------------------------------------------------------
+IP, EIPS and route 53
+# EIP: a public, static IP address that you can attach to your instance
+
+resource "aws_instance" "example" {
+	ami = "${lookup(var.AMIS, var.AWS_REGION)}"
+	instance_type = "t2.micro"
+	subnet_id = "${aws_subnet.main-public-1.id}"
+	private_ip = "10.0.1.4" # within the range of subnet main-public-1
+}
+
+resouce "aws_eip" "example-eip" {
+	instance = "${aws_instance.example.id}"  // the public elastic IP
+	vpc = true
+}
+
+
+Route 53:
+# typically use hostnames rather than IP addresses. 
+# Adding a zone and records in terraform:
+
+resource "aws_route53_zone" "example.com" {
+	name = "example.com"	
+}
+resource "aws_route53_record" "server1-record" {
+	zone_id = "${aws_route53_zone.example-com.zone_id}"
+	name = "server1.example.com"
+	type = "A"   //to resolve a hostname to IP address
+	ttl = "300"
+	records = ["${aws_eip.example-eip.public_ip}"]
+}
+--------------------------------------------------------------------
+IAM 
+  - users can have groups
+  - roles
+    - give temporary access attached to EC2 instances
+  - service can also assume roles
+    - API call to AWS when accessing bucket
+    - AWS API will give temporary access keys that can be used to 		assume this role
+    - SDK can be used just like when you would have normal 				credentials
+    - happens in the background 
+--------------------------------------------------------------------
+Autoscaling
+  - can be created to automatically add/remove instances when 			certain thresholds are reached. 
+    - AWS launch configuration: properties of the instance to be 		launched.
+    - autoscaling group: scaling properties (min instances, max 		instances, health checks)
+  - Autoscaling policies:
+    - triggered based on a threshold (CloudWatch Alarm)
+    - Adjustment will be executed
+      - average CPU ustilization is more than 20%, scale up
+      - average CPU utilization less than 5%, scale down 
+--------------------------------------------------------------------
+Load Balancer
+  - if a new instance is added by the autoscaling group, the ELB will automatically add the new instances and will start healthchecking it.
+  - The ELB can also be used as SSL terminator. 
+    - can offload the encryption away from EC2 instances
+    - AWS can manage SSL certificates for you
+  - ELBs can be spread over multiple AZs for higher fault tolerance
+  - you will achieve higher level of fault tolerance with ELB 			routing traffic.
+
+  - types of load balancers
+    - classic load balancer (ELB)
+      - routes traffic based on network information
+    - the Application Load Balancer (ALB)
+--------------------------------------------------------------------
+Application Load Balancer:
+  - general settings
+  - specify a target group
+  - attach instances to targets
+--------------------------------------------------------------------
+Elastic Beanstalk:
+  - platform as a service solution
+  - launch your app on without having to maintain the uderlying infrastructure.
+    - you are still responsible for the EV2 instances, but AWS will provide you with updates you can apply.
+      - Updates can be applied manually or automatically
+  - Can handle application scaling for you
+    - uderlying it uses a LB and Autoscaling group to achieve this
+    - You can schedule scaling events or enable autoscaling based on a metric
+  - Similar to Heroku
+  
+
+
+
+

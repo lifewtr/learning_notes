@@ -1,0 +1,7 @@
+chef process:
+1. create
+2. check: cookstyle <cookbook name>
+3. test: chef-client --local-mode --why-run <cookbook name>
+4. run: chef-client --local-mode <cookbook name>
+
+cookbook name---recipes----default.rb

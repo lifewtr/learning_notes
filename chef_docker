@@ -1,0 +1,131 @@
+chef_docker:
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+start running docker:
+1. sudo systemctl start docker
+--------------------------------------------------------------------
+detect whether a package is installed, run in bash:
+sudo docker exec -it workstation bash
+1. dpkg -s auditd | grep Status
+--------------------------------------------------------------------
+Inspec:
+- an inspec test is called a control. 
+- contorls are grouped into profiles. 
+1. inspec detect
+# gives info about the system
+2. cd /root
+3. git clone https://github.com/learn-chef/auditd.git
+# download a file to directory root. 
+4. inspec exec /root/auditd
+# execute your profile directly against your workstation
+# the test passes because auditd is installed. 
+5. inspec exec auditd -t ssh://root:password@target
+# run the test against a remote target using ssh.
+6. inspec exec auditd -t ssh://root:password@target --reporter=json | jq
+# get the json response. An InSpec profile can contain dozens or hundreds of test. Can use json to generate reports.
+7. inspec check auditd
+# check if the file is free of errors
+8. inspec archive auditd
+# archive my profile.
+9. ls | grep auditd
+# see the generated file
+10. inspec exec auditd-0.1.0.tar.gz -t ssh://root:password@target
+# can run InSpec from an archive. 
+--------------------------------------------------------------------
+community profiles:
+1. inspec supermarket profiles
+# see available profiles in the community
+2. inspec supermarket exec dev-sec/linux-baseline -t ssh://root:password@target
+# try the profile on my container.
+3. inspec exec https://github.com/dev-sec/linux-baseline -t ssh://root:password@target
+# does the same thing. 
+4. inspec exec https://github.com/dev-sec/linux-baseline -t ssh://root:password@target | grep -A 7 package-08
+# run only certain controls
+--------------------------------------------------------------------
+Automating correction
+1. docker-compose down --rmi all
+# destroy setup and delete docker images from disk.
+2. rm ~/learn-inspec/.ssh/known_hosts
+# delete known hosts to avoid conflicts next time.
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+Habitat
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+## habitat can be used to 
+# build packages that include everything needed for application to run. 
+# Deploy application on any platform. 
+# Manage running application and respond to configuration changes. 
+1. hab studio enter
+# enter the studio
+2. build haproxy
+# build comman looks for the habitat plan file in the haproxy directory and builds it. 
+## gets: lifewtr-haproxy-1.6.11-20190605194702-x86_64-linux.hart
+# lifewtr: origin name
+# haproxy: package name
+# 1.6.11: version 
+# 20190605194702: release
+# x86_64: target architecture
+# linux: target platform
+# .hart: extension, stands for "habitat artifact"
+3. build webapp
+4. hab svc load $HAB_ORIGIN/webapp
+# or could run hab svc load lifewtr/webapp
+5. hab sup status
+# see the status of your service
+6. sup-log
+# see the log 
+7. curl -s 127.0.0.1 | grep 'The time is'
+# access the web application
+8. hab pkg upload ./results/lifewtr-webapp-0.2.0-20190605195210-x86_64-linux.hart
+# upload webapp package. 
+9. hab pkg export docker $HAB_ORIGIN/webapp
+# pulls down the latest stable release from builder. 
+10. hab pkg export docker -c unstable $HAB_ORIGIN/haproxy
+# create a docker image for the HAProxy load balancer
+11. sudo docker images | grep $HAB_ORIGIN
+# check the docker images created by the applications. 
+--------------------------------------------------------------------
+The result
+version: '3'
+services:
+  web-1:
+    image: $HAB_ORIGIN/webapp
+    environment:
+     - HAB_LICENSE=accept-no-persist
+  web-2:
+    image: $HAB_ORIGIN/webapp
+    environment:
+     - HAB_LICENSE=accept-no-persist
+    command: --peer web-1
+    depends_on:
+      - web-1
+  load-balancer:
+    image: $HAB_ORIGIN/haproxy
+    environment:
+     - HAB_LICENSE=accept-no-persist
+    command: --peer web-2
+             --bind backend:webapp.default
+    ports:
+      - 8000:80
+    depends_on:
+      - web-2
+# the haproxy is a load balancer that listens on port 80. We put the output to port 8000and the load balancer redirects traffic to two webapp instances. 
+1. sudo HAB_ORIGIN-lifewtr docker-compose -p habquickstart up -d
+# HAB_ORIGIN is set in non-sudo commands so in order to run this, need to initialize the variable before running. 
+2. sudo docker ps 
+# to see the containers.
+3. docker network ls
+# so see the running networks.
+4. sudo docker exec habquickstart_load-balancer_1 cat /hab/svc/haproxy/config/haproxy.conf
+# print the contents of haproxy config file
+5. sudo docker-compose -p habquickstart down
+# terminate containers.
+6. sudo docker images | grep $HAB_ORIGIN
+# see list of images. 
+7. sudo docker image rm -f 529584b97714 d1dab57bd0bf
+--------------------------------------------------------------------
+--------------------------------------------------------------------
+windows:
+1. docker login // for first time starting docker. 
+2. 
