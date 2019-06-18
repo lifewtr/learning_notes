@@ -1,0 +1,149 @@
+- outline resources needed 
+- creates resources in the right order given the configuration
+- infrastructure as code
+- automated generation of daigram for your templates
+#####################################################################
+CloudFormation vs. Ansible/Terraform
+	- cloud formation is state basedd, and terraform is instruction based.
+#####################################################################
+How CloudFromation works:
+	- Templates have to be uploaded in S3 and then referenced in CloudFormation
+	- cannot edit previous ones, Have to reupload a new version of the template to AWS
+	- Stacks are identified by a name
+	- Deleting a stack deletes every single artifact that was created by CloudFormation
+#####################################################################
+updating an S3 bucket using CloudFormation
+	- if update the current bucket using a new yaml file, the replacement flag is set to true, and a new bucket will be made
+#####################################################################
+CloudFormation templates:
+  - tags: company policies
+  - permissions: IAM roles attached 
+  - notification options: SNS topic 
+  - Timeouts: minutes before Failure
+  - Rollback on Failure: yes/no
+  - Stack Policy: customized policy file
+#####################################################################
+CloudFormation Designer: 
+  - help visualize a CloudFormation Stack
+  - could be used to draft CloudFormation templates
+  - click on design template to start
+#####################################################################
+CloudFormation Building Blocks:
+  Templates components:
+    - Resources: your AWS resources declared in the template
+    - Parameters: the dynamic inputs for your template
+    - Mappings: the static variables for your template
+    - Outputs: References to what has been created
+    - Conditionals: List of conditions to perform resource creation
+    - Metadata: any comments
+#####################################################################
+Deploying CloudFormation templates:
+  - Editing templates in a YAML file
+  - Using the AWS CLI to deply the templates
+#####################################################################
+CloudFormation parameters:
+  - parameters: a way to provide INPUTS to your AWS CloudFormation template
+  - scenarios:
+    - want to REUSE your template across the company
+    - some inputs cannot be determined ahead of time
+  - When to use parameter:
+    - resource configuration likely to change in the future
+  - controlled by:
+    - Types:
+      - String
+      - Number
+      - CommaDelimitedList
+      - List
+      - AWS Parameter
+    - Description: vpc to operate in
+    - Constraints:
+    - constraintDesciption: must be the name of an existing EC2 keypair
+    - Min/Max length:
+    - Min/Nax values:
+    - AllowedValues:
+    - AllowedPattern:
+#####################################################################
+How to reference a parameter:
+  - The Fn::Ref function can be leveraged to reference parameters
+  - Parameters can be used anywhere in a template
+  - shorthand is !Ref
+  - example:
+    SubnetId: !Ref DbSubnet1
+#####################################################################
+Resource:
+  - core of your CloudFormation template
+  - represent the different AWS Components that will be created and configured
+  - declared and can reference eachother
+  - AWS figures out creation, updates and deletes of resources for us
+#####################################################################
+mappings:
+  - fixed variables within your CloudFormation Template.
+  - They are very handy to differentiate between different environments, regions, AMI types, etc.
+  - mappings vs parameters:
+    - mappings are great when you know in advance all the values that can be taken and that can be deduced from variable such as
+      - region
+      - availability zone
+      - aws account
+      - Environment 
+    - allow safer control over the template
+    - use parameters when the values are really user specific
+#####################################################################
+Accessing Mapping Values:
+  - we use  Fn::FindInMap to return a named value from a specific key
+  - !FindInMap [<apName, TopLevelKey, SecondLevelKey]
+#####################################################################
+CloudFormation Outputs:
+  outputs:
+    - optional, values that we can import into other Stacks
+    - can also view outputs in the AWS Console or in using the AWS CLI
+    - They are very useful for example if you define a network CloudFormation, and output the variables such as VPC ID and your subnet IDs.
+    - for collaboration
+#####################################################################
+CloudFormation conditions:
+  - used to control the creation of resources or outputs based on a condition.
+  - Conditions can be whatever you want them to be, but common ones are
+    - Environment
+    - AWS region
+    - any parameter
+  - Define condition 
+    - Conditions:
+      Logical ID:
+        Intrinsic function
+  - logical id names the condition
+  - the intrinsic function can be any of the following
+    - and, equals, if, not, or 
+#####################################################################
+User Data vs CloudFormation::Init vs Helper Scripts:
+  - user-data: imperative way to provision/bootstrap the EC2 instance using SHELL syntax
+  - AWS::CloudFormation::Init: declarative way to provision/bootstrap the EC2 instance using YAML or JSON syntax.
+  - AWS::CloudFormation::Init: useless if it is NOT triggered by UserData 
+#####################################################################
+CloudFormation Drift:
+  - CloudFormation allows you to create infrastructure
+  - but does not protect you against manual configuration changes
+  - how do we know if our resources have drifted?
+  - use CloudFormation drift 
+  - can enable drift detection and check to see what has been changed
+#####################################################################
+Nest Stacks Overview:
+  - stacks as part of other stacks
+  - they allow you to isolate repeated patterns / common components in separate stacks and call them from other stacks
+  - to update a nested stack, always update the parent 
+  - nested stacks can have nested stacks themselves
+  - Delete: 
+    - never delete or apply changes directly to the child stack
+    - always do changes from the top level stack
+#####################################################################
+Exporting Stack Output Values vs Using Nested Stacks:
+  - central resource that is shared between many other stacks, use Exported Stack Output Values
+  - need other stacks to be updated right away if a central resource is updated, use Exported Stack Output Values
+  - dedicated to one stack only and must be re-usable pieces of code, use Nested Stacks
+  - need to update each Root stack manually in case of Nested Stack updates 
+#####################################################################
+Troposphere to template CloudFormation using Python:
+  - advantages:
+    - start using types in your templates
+    - generated ClouFormation will be valid
+    - dynamically generate CloudFormation
+    
+
