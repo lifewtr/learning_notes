@@ -1,0 +1,21 @@
+# YAML Crash Course
+---
+course: AWS Lambda
+instructor: Stephane Maarek
+instructor-full: 
+  first-name: Stephane
+  last-name: Maarek
+  awesomeness: 9000
+sections-list: 
+  - Introduction
+  - Deploying your first function
+  - :earning AWS Lambda in depth
+  - Real Wrold examples
+lectures: 
+  - lecture-id: 1
+    lecture-name: intro
+    lecture-length: 5:03
+  - lecture-id: 2
+    lecture-name: aws Lambda
+    lecture-length: 10:47
+

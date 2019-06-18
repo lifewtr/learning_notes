@@ -1,0 +1,11 @@
+sudo apt-get install mailutils
+> Internet Site
+sudo vim /etc/postfix/main.cf
+inet_interfaces = all--->loopback-only/localhost
+sudo service postfix restart
+echo "test email body" | mail -s "Test subject line" user@example.com
+sudo vim /etc/aliases
+add: root: user1@example.com
+sudo newaliases
+echo "test email body" | mail -s "Test subject line" root
+
