@@ -4,7 +4,7 @@ note_chef:
 2. ssh in using the command: ssh -i key.pem ec2-user@my-ip-addr
 3. can make recipes by writing to test.rb
 --------------------------------------------------------------------
-sampple rb file:
+sample rb file:
 
 package 'httpd'
 
