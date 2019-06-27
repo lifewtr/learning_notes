@@ -9,7 +9,7 @@ resource "iam_policy" "admin-attach" {
 }
 # user
 resource "iam_user" "admin1" {
-	name = "admin1"
+	name = "admin1"sdf
 }
 resource "iam_user" "admin2" {
 	name = "admin2"
